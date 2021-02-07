@@ -14,7 +14,7 @@ const conn = mysql.createConnection({
     host: "localhost",
     user: "<USERNAME GOES HERE>",
     password: "<DATABASE PASSWORD GOES HERE>",
-    database: "ITXTU"
+    database: "<DATABASE NAME GOES HERE>"
 })
 conn.connect(function (err) {
     if (err) { console.log("err"); }
@@ -35,6 +35,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 
 app.get('/', function (req, res) {
+    console.log(req.session.cnames)
     res.render('index')
 });
 
@@ -96,7 +97,7 @@ app.get('/messages', function (req, res) {
 
         req.session.cnames = []
 
-        conn.query("SELECT USERS.Id, Username FROM USERS INNER JOIN CONTACTS ON USERS.Id = CONTACTS.Id WHERE USERS.Id <> " + `${req.session.uid}`, function (err, result) {
+        conn.query("SELECT USERS.Id, Username FROM USERS INNER JOIN CONTACTS ON USERS.Id = CONTACTS.MAIN_USER WHERE CONTACTS.CONN_USER = " + `${req.session.uid}`, function (err, result) {
             console.log(result)
 
             result.forEach(element => {
@@ -125,7 +126,7 @@ app.get('/messages', function (req, res) {
 
                     
 
-                    conn.query(`SELECT Id,FromUser,ToUser,Content FROM MESSAGES WHERE FromUser = ${req.session.uid} AND ToUser = ${data.id} OR (FromUser = ${data.id} AND ToUser = ${req.session.uid})`, function (err, result) {
+                    conn.query(`SELECT Id,FromUser,ToUser,Content,Time FROM MESSAGES WHERE FromUser = ${req.session.uid} AND ToUser = ${data.id} OR (FromUser = ${data.id} AND ToUser = ${req.session.uid})`, function (err, result) {
                         // console.log(result)
 
                         // result.forEach(element => {
@@ -137,10 +138,38 @@ app.get('/messages', function (req, res) {
                 })
 
 
+                socket.on('newChat', function(name){
+                    console.log(name)
+                    conn.query(`SELECT Id,Username FROM USERS WHERE Username = '${name.name}'`,function(err, result){
+                        if (err) {
+                            console.log("err");
+                        }
+                        if(result.length > 0) {
+                            console.log(result)
+                            var rid = result[0].Id
+                            req.session.cnames.push(result[0])
+                            console.log(req.session.cnames)
+                            conn.query(`INSERT INTO CONTACTS (MAIN_USER, CONN_USER) VALUES (${req.session.uid}, ${result[0].Id}),(${result[0].Id}, ${req.session.uid});`, function(err, result){
+                                // console.log(result)
+                                // socket.emit('newChatAdded',{name: name.name, id: rid})
+                            })
+                            socket.emit('newChatAdded',{name: name.name, id: rid})
+                        }
+                        else {
+                            console.log("no user exists")
+                        }
+                    })
+                })
+
+
+                socket.on('getNames', function(){
+                    socket.emit('listContacts', {data: req.session.cnames})
+                })
+
+
 
 
                 socket.on('messageData', function ({data, toId}) {
-
                     // console.log("put " + data + "into "+ toId)
                     conn.query(`INSERT INTO MESSAGES (Content, Time, FromUser, ToUser) VALUES ('${data}', NOW(), ${req.session.uid}, ${toId});`,function(err, result) {
 
@@ -157,6 +186,39 @@ app.get('/messages', function (req, res) {
         // res.render('messages',{sess: req.session})
     }
 })
+
+
+
+app.get('/signup', function (req, res) {
+    res.render('signup')
+});
+
+
+app.post('/signup', function (req, res) {
+    var username = req.body.username;
+    var email = req.body.email
+    var password = req.body.password;
+
+    conn.query(`SELECT * FROM USERS WHERE Username = '${username}' OR Email = '${email}'`, function(err, result){
+        if (err) {
+            console.log("error, signup failed");
+            res.render('signup')
+        }
+        if(result.length > 0) {
+            console.log(result)
+            res.render('signup')
+        }
+        else {
+            conn.query(`INSERT INTO USERS (Username, Email, Password) VALUES ('${username}', '${email}', '${password}');`, function(err, result){
+                res.redirect('login')
+
+            })
+        }
+    })
+    // console.log(username, password)
+    // res.redirect('login')
+});
+
 
 
 
