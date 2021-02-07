@@ -1,2 +1,6 @@
 # Node-JS-messenger
 Messenger app implemented using socket.io
+
+This is an instant messenger app made using Nodejs, express, MySQL, and socket.io. To run this project, download the repo and in the Messenger folder, first run 'npm install', then run 'node index.js'; in a browser (preferably Chrome), navigate to 'localhost:2000/' to view the running project.
+
+Users can create accounts and can message other users. Currently, an email is required to sign up, but email authentication hasn't been implemented yet. Another feature to be implemented includes encrypted passwords, as they are currently only saved as plain text; a simple solution would be to use the 'bcrypt' package. For the database, MySQL is used by running a MySQL service; the table schemas are included in the repo. In the index.js file on lines 14 to 17 contain connection parameters including host (should be 'local' when running local), user and password for their respective fields of the database, and the database name (any name you want).
